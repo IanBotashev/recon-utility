@@ -1,11 +1,10 @@
+#!/usr/bin/env python3
 import argparse
 import sys
 import threading
-
 import nmap
 import logging
 import socket
-from threading import Thread
 import subprocess  # For executing a shell command
 from ping3 import ping
 from terminaltables import AsciiTable
