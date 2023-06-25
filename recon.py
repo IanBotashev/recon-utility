@@ -1,5 +1,7 @@
 import argparse
 import sys
+import threading
+
 import nmap
 import logging
 import socket
@@ -14,6 +16,7 @@ DEFAULT_WEBSERVER_PORTS = [80, 443]
 
 class ReconUtility:
     def __init__(self, target: str, verbose: bool, wordlist: bool):
+        self.has_web_server = None
         if verbose:
             log_level = logging.DEBUG
         else:
@@ -35,11 +38,17 @@ class ReconUtility:
             logging.critical("Target is not up.")
             exit()
 
-        has_web_server = self.check_for_webserver()
-        self.full_scan()
-        if self.wordlist is not None and has_web_server:
-            logging.info("Trying gobuster...")
-            self.bust_dirs()
+        self.has_web_server = self.check_for_webserver()
+        nmap_thread = threading.Thread(target=self.full_scan)
+        gobuster_thread = threading.Thread(target=self.bust_dirs)
+
+        logging.debug("Started nmap thread...")
+        nmap_thread.start()
+        logging.debug("Started gobuster thread...")
+        gobuster_thread.start()
+
+        nmap_thread.join()
+        gobuster_thread.join()
 
     def check_if_target_running(self):
         """
@@ -72,7 +81,9 @@ class ReconUtility:
         Runs gobuster.
         :return:
         """
-        subprocess.check_output(['gobuster', 'dir', '-u', self.target, '-w', self.wordlist, '>', 'gobusterresult.txt'])
+        if self.wordlist is not None and self.has_web_server:
+            result = subprocess.check_output(['gobuster', 'dir', '-u', self.target, '-w', self.wordlist])
+            print(result.decode('ascii'))
 
     def full_scan(self):
         """
